@@ -1,4 +1,4 @@
-FROM rust:1.54.0-slim-bullseye AS builder
+FROM rust:1.58.1-slim-bullseye AS builder
 
 ARG MDBOOK_VERSION="0.4.7"
 
@@ -23,6 +23,9 @@ RUN apt-get update --allow-insecure-repositories; \
         i386) rustArch='i686-unknown-linux-gnu' ;; \
         *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
     esac; \
+    echo "Setting cargo default channel to: stable"; \
+    rustup default stable; \
+    rustup update; \
     echo "Setting cargo default arch to: ${rustArch}"; \
     rustup set default-host ${rustArch}; \
     cargo install --path . ; \
