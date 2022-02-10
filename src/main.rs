@@ -8,6 +8,7 @@ use serde_derive::{Deserialize};
 pub struct Document {
     pub filename: PathBuf,
     pub template: Option<PathBuf>,
+    pub include: Option<Vec<PathBuf>>,
 }
 
 impl Default for Document {
@@ -15,8 +16,49 @@ impl Default for Document {
         Self {
             filename: PathBuf::from("output.docx".to_string()),
             template: Some(PathBuf::from("reference.docx".to_string())),
+            include: None,
         }
     }
+}
+
+impl Document {
+
+    // filter the book content based on include/exclude values
+    fn get_filtered_content(&self, context: &RenderContext) -> String {
+        let mut content = String::new();
+        let include = &self.include;
+
+        // if include is not specified, its an implicit include-all
+        if include.is_none() {
+            println!("No include value provided. Using implicit include-all.");
+            for item in context.book.iter() {
+                if let BookItem::Chapter(ref ch) = *item {
+                    if let true = &ch.path.is_some() {
+                        println!("Found and including content: {:#?}", &ch.path.to_owned());
+                        content.push_str(&ch.content);
+                    }
+                }
+            }
+        }
+        // include value has been provided, so its an explicit-include-only
+        else {
+            println!("Include value provided. Using explicit-include-only.");
+            for item in context.book.iter() {
+                if let BookItem::Chapter(ref ch) = *item {
+                    if let true = &ch.path.is_some() {
+                        if let true = include.clone().unwrap().contains(&ch.path.clone().unwrap()) {
+                            println!("Found and including content: {:#?}", &ch.path.to_owned());
+                            content.push_str(&ch.content);
+                        }
+                    }
+                }
+            }
+        }
+
+        // return content
+        content
+    }
+
 }
 
 pub struct PandocConfig {
@@ -51,14 +93,7 @@ fn main() {
     let pandoc_config = PandocConfig::default();
 
     // set the content
-    let mut content = String::new();
-    for item in ctx.book.iter() {
-        if let BookItem::Chapter(ref ch) = *item {
-            if let true = &ch.path.is_some() {
-                content.push_str(&ch.content);
-            }
-        }
-    }
+    let content = document.get_filtered_content(&ctx);
 
     let mut pandoc = Pandoc::new();
     pandoc.set_input_format(pandoc::InputFormat::Commonmark, pandoc_config.input_extensions);
