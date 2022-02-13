@@ -3,11 +3,15 @@ use mdbook::{BookItem};
 use mdbook::renderer::RenderContext;
 use pandoc::{Pandoc,MarkdownExtension, PandocOption};
 use serde_derive::{Deserialize};
+use glob::Pattern;
 
 #[derive(Debug, Deserialize)]
 pub struct Document {
+    #[serde(default)]
     pub filename: PathBuf,
+    #[serde(default)]
     pub template: Option<PathBuf>,
+    #[serde(default)]
     pub include: Option<Vec<PathBuf>>,
 }
 
@@ -16,45 +20,69 @@ impl Default for Document {
         Self {
             filename: PathBuf::from("output.docx".to_string()),
             template: Some(PathBuf::from("reference.docx".to_string())),
-            include: None,
+            include: Some(vec![PathBuf::from("*".to_string())]),
         }
     }
 }
 
 impl Document {
 
+    fn get_chapters(&self, context: &RenderContext) -> Vec<PathBuf> {
+
+        // valid globs
+        let patterns = self.get_patterns();
+
+        let mut ch: Vec<PathBuf> = Vec::new();
+        for item in context.book.iter() {
+            if let BookItem::Chapter(ref c) = *item {
+                if c.path.is_some() {
+
+                    let mut pattern_match = false;
+                    for p in &patterns {
+                        if p.matches_path(c.path.clone().unwrap().as_path()) {
+                            pattern_match = true;
+                        }
+                    }
+                    if pattern_match == true {
+                        ch.push(c.path.clone().unwrap())
+                    }
+                }
+            }
+        }
+        ch
+    }
+
+    // establish the list of globs based on the list of includes
+    fn get_patterns(&self) -> Vec<Pattern> {
+        let mut patterns: Vec<Pattern> = Vec::new();
+        for buf in self.include.clone().unwrap_or_default() {
+            patterns.push(Pattern::new(buf.to_str().unwrap()).expect("Unable to create Pattern from provided include."));
+        }
+        // if patterns remains empty, use wildcard catch-all glob
+        if patterns.len() == 0 {
+            println!("No include value provided. Using wildcard glob.");
+            patterns.push(Pattern::new("*").expect("Error using wildcard glob."));
+        }
+        patterns
+    }
+
     // filter the book content based on include/exclude values
     fn get_filtered_content(&self, context: &RenderContext) -> String {
+        
         let mut content = String::new();
-        let include = &self.include;
+        let chapters = self.get_chapters(context);
+        println!("Filtered content: {:#?}", &chapters);
 
-        // if include is not specified, its an implicit include-all
-        if include.is_none() {
-            println!("No include value provided. Using implicit include-all.");
-            for item in context.book.iter() {
-                if let BookItem::Chapter(ref ch) = *item {
-                    if let true = &ch.path.is_some() {
-                        println!("Found and including content: {:#?}", &ch.path.to_owned());
+        for item in context.book.iter() {
+            if let BookItem::Chapter(ref ch) = *item {
+                if let true = &ch.path.is_some() {
+                    if let true = chapters.contains(&ch.path.clone().unwrap()) {
                         content.push_str(&ch.content);
                     }
                 }
             }
         }
-        // include value has been provided, so its an explicit-include-only
-        else {
-            println!("Include value provided. Using explicit-include-only.");
-            for item in context.book.iter() {
-                if let BookItem::Chapter(ref ch) = *item {
-                    if let true = &ch.path.is_some() {
-                        if let true = include.clone().unwrap().contains(&ch.path.clone().unwrap()) {
-                            println!("Found and including content: {:#?}", &ch.path.to_owned());
-                            content.push_str(&ch.content);
-                        }
-                    }
-                }
-            }
-        }
-
+        
         // return content
         content
     }
@@ -86,7 +114,7 @@ fn main() {
     let document: Document = ctx
         .config
         .get_deserialized_opt("output.docx")
-        .expect("Error reading \"output.docx\" configuration in book.toml")
+        .expect("Error reading \"output.docx\" configuration in book.toml. Check that all values are of the correct data type.")
         .unwrap_or_default();
 
     // get the static, non-configurable pandoc configuration
