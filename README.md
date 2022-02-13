@@ -26,6 +26,35 @@ Build your book to output your document(s) alongside the other backend outputs i
 mdbook build
 ```
 
+## Installation
+
+> `mdbook-docx` is currently in heavy development and is not yet available with cargo.
+> Recommended use for now is with [Docker](#docker).
+
+Install `mdbook-docx` binary from local clone
+
+```bash
+cargo install --path .
+```
+
+Add the following to your `book.toml` to enable the Docx backend.
+
+The mandatory and default settings are provided below.
+
+```bash
+[output.docx]
+```
+
+### Docker
+
+A minimal docker image is published containing all the prerequisites, `mdbook`, `mdbook-docx` and most of the common `mdbook` backends.
+
+```terminal
+# update your volume mount path as necessary.
+# make sure all content referenced by your .md files is inside the container.
+docker run -it --volume $(pwd):/book rossmurr4y/mdbook build
+```
+
 ## Configuration
 
 The configuration accepts an array of `Documents`. At least one must be specified.
