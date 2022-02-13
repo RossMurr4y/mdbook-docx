@@ -6,6 +6,18 @@ use serde_derive::{Deserialize};
 use glob::Pattern;
 
 #[derive(Debug, Deserialize)]
+pub struct DocumentList {
+    #[serde(default)]
+    documents: Vec<Document>,
+}
+
+impl Default for DocumentList {
+    fn default() -> Self {
+        Self { documents: vec![] }
+    }
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Document {
     #[serde(default)]
     pub filename: PathBuf,
@@ -111,33 +123,42 @@ fn main() {
     let ctx = RenderContext::from_json(&mut stdin)
         .expect("Error with the input data. Is everything formmated correctly?");
 
-    let document: Document = ctx
+    let list: DocumentList = ctx
         .config
         .get_deserialized_opt("output.docx")
         .expect("Error reading \"output.docx\" configuration in book.toml. Check that all values are of the correct data type.")
         .unwrap_or_default();
 
-    // get the static, non-configurable pandoc configuration
-    let pandoc_config = PandocConfig::default();
+    println!("List of documents: {:#?}", list.documents);
 
-    // set the content
-    let content = document.get_filtered_content(&ctx);
+    // loop over each document configuration and create it
+    for doc in list.documents {
 
-    let mut pandoc = Pandoc::new();
-    pandoc.set_input_format(pandoc::InputFormat::Commonmark, pandoc_config.input_extensions);
-    pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
-    pandoc.set_output_format(pandoc::OutputFormat::Docx, vec!());
-    pandoc.set_output(pandoc::OutputKind::File(document.filename));
+        let context = ctx.clone();
 
-    // set pandoc options
-    let src_path = PathBuf::from(&ctx.root).join("src");
-    pandoc.add_option(pandoc::PandocOption::DataDir(ctx.root.clone()));
-    pandoc.add_option(pandoc::PandocOption::ResourcePath(vec!(src_path.clone())));
-    // if a template was specified in the config, use it
-    if let Some(t) = document.template { pandoc.add_option(PandocOption::ReferenceDoc(PathBuf::from(ctx.root).join(t))); }
-    
-    // output the pandoc cmd for debugging
-    pandoc.set_show_cmdline(true);
+        // get the static, non-configurable pandoc configuration
+        let pandoc_config = PandocConfig::default();
 
-    pandoc.execute().expect("Cannot unwrap the result.");
+        // set the content
+        let content = doc.get_filtered_content(&context);
+
+        let mut pandoc = Pandoc::new();
+        pandoc.set_input_format(pandoc::InputFormat::Commonmark, pandoc_config.input_extensions);
+        pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
+        pandoc.set_output_format(pandoc::OutputFormat::Docx, vec!());
+        pandoc.set_output(pandoc::OutputKind::File(doc.filename));
+
+        // set pandoc options
+        let src_path = PathBuf::from(&context.root).join("src");
+        pandoc.add_option(pandoc::PandocOption::DataDir(ctx.root.clone()));
+        pandoc.add_option(pandoc::PandocOption::ResourcePath(vec!(src_path.clone())));
+        // if a template was specified in the config, use it
+        if let Some(t) = doc.template { pandoc.add_option(PandocOption::ReferenceDoc(PathBuf::from(context.root).join(t))); }
+        
+        // output the pandoc cmd for debugging
+        pandoc.set_show_cmdline(true);
+
+        pandoc.execute().expect("Cannot unwrap the result.");
+
+    }
 }
