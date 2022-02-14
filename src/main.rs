@@ -109,7 +109,7 @@ pub struct PandocConfig {
 impl Default for PandocConfig {
     fn default() -> Self {
         Self { 
-            input_extensions: vec![MarkdownExtension::PipeTables, MarkdownExtension::ImplicitFigures], 
+            input_extensions: vec![MarkdownExtension::PipeTables], 
             content: Default::default() 
         }
     }
