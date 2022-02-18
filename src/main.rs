@@ -103,13 +103,22 @@ impl Document {
 
 pub struct PandocConfig {
     pub input_extensions: Vec<MarkdownExtension>,
+    pub output_extensions: Vec<MarkdownExtension>,
     pub content: String,
 }
 
 impl Default for PandocConfig {
     fn default() -> Self {
         Self { 
-            input_extensions: vec![MarkdownExtension::PipeTables], 
+            input_extensions: vec![
+                MarkdownExtension::PipeTables, 
+                MarkdownExtension::RawHtml, 
+                MarkdownExtension::AutolinkBareUris, 
+                MarkdownExtension::AutoIdentifiers, 
+                MarkdownExtension::HardLineBreaks, 
+                MarkdownExtension::BlankBeforeHeader
+            ], 
+            output_extensions: vec![],
             content: Default::default() 
         }
     }
@@ -143,15 +152,17 @@ fn main() {
         let content = doc.get_filtered_content(&context);
 
         let mut pandoc = Pandoc::new();
-        pandoc.set_input_format(pandoc::InputFormat::Commonmark, pandoc_config.input_extensions);
+        pandoc.set_input_format(pandoc::InputFormat::MarkdownGithub, pandoc_config.input_extensions);
         pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
-        pandoc.set_output_format(pandoc::OutputFormat::Docx, vec!());
+        pandoc.set_output_format(pandoc::OutputFormat::Docx, pandoc_config.output_extensions);
         pandoc.set_output(pandoc::OutputKind::File(doc.filename));
 
         // set pandoc options
         let src_path = PathBuf::from(&context.root).join("src");
         pandoc.add_option(pandoc::PandocOption::DataDir(ctx.root.clone()));
         pandoc.add_option(pandoc::PandocOption::ResourcePath(vec!(src_path.clone())));
+        pandoc.add_option(pandoc::PandocOption::AtxHeaders);
+        pandoc.add_option(pandoc::PandocOption::ShiftHeadingLevelBy(1));
         // if a template was specified in the config, use it
         if let Some(t) = doc.template { pandoc.add_option(PandocOption::ReferenceDoc(PathBuf::from(context.root).join(t))); }
         
