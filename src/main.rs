@@ -93,6 +93,12 @@ impl Document {
                 if let true = &ch.path.is_some() {
                     if let true = chapters.contains(&ch.path.clone().unwrap()) {
                         content.push_str(&ch.content);
+                        // chapter content in mdBook strips out newlines at the end of a file.
+                        // because we want to play it safe and add the MarkdownExtension
+                        // BlankBeforeHeader by default, this prevents all the level-1 headers
+                        // - h1's - from being accepted as headers, so they come out styled incorrectly.
+                        // To resolve this we simply append two newlines to the end of every chapter.
+                        content.push_str("\n\n");
                     }
                 }
             }
@@ -121,6 +127,9 @@ impl Default for PandocConfig {
                 MarkdownExtension::HardLineBreaks, 
                 MarkdownExtension::BlankBeforeHeader,
                 MarkdownExtension::TableCaptions,
+                MarkdownExtension::PandocTitleBlock,
+                MarkdownExtension::YamlMetadataBlock,
+                MarkdownExtension::ImplicitHeaderReferences,
             ], 
             output_extensions: vec![],
             content: Default::default() 
@@ -166,6 +175,7 @@ fn main() {
         pandoc.add_option(pandoc::PandocOption::DataDir(ctx.root.clone()));
         pandoc.add_option(pandoc::PandocOption::ResourcePath(vec!(src_path.clone())));
         pandoc.add_option(pandoc::PandocOption::AtxHeaders);
+        pandoc.add_option(pandoc::PandocOption::ReferenceLinks);
         // if a heading offset was specified in the config, use it
         if let Some(o) = doc.offset_headings_by { pandoc.add_option(pandoc::PandocOption::ShiftHeadingLevelBy(o)); }
         // if a template was specified in the config, use it
