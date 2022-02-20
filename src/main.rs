@@ -119,7 +119,8 @@ impl Default for PandocConfig {
                 MarkdownExtension::AutolinkBareUris, 
                 MarkdownExtension::AutoIdentifiers, 
                 MarkdownExtension::HardLineBreaks, 
-                MarkdownExtension::BlankBeforeHeader
+                MarkdownExtension::BlankBeforeHeader,
+                MarkdownExtension::TableCaptions,
             ], 
             output_extensions: vec![],
             content: Default::default() 
