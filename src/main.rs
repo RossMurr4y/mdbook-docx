@@ -1,9 +1,14 @@
 use glob::Pattern;
 use mdbook::renderer::RenderContext;
 use mdbook::BookItem;
-use pandoc::{Pandoc, MarkdownExtension, PandocError, PandocOption};
+use pandoc::{MarkdownExtension, Pandoc, PandocError, PandocOption};
 use serde_derive::Deserialize;
-use std::{error::Error, fmt, io::{self}, path::PathBuf};
+use std::{
+    error::Error,
+    fmt,
+    io::{self},
+    path::PathBuf,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct DocumentList {
@@ -58,7 +63,7 @@ impl Default for Document {
 impl Document {
     fn get_chapters(&self, context: &RenderContext) -> Result<Vec<PathBuf>, DocumentError> {
         // valid globs
-        let patterns = self.get_patterns();
+        let patterns = self.get_patterns()?;
 
         let mut ch: Vec<PathBuf> = Vec::new();
         for item in context.book.iter() {
@@ -76,12 +81,14 @@ impl Document {
                 }
             }
         }
-        if ch.is_empty() { return Err(DocumentError::BookNoChaptersError) };
+        if ch.is_empty() {
+            return Err(DocumentError::BookNoChaptersError);
+        };
         Ok(ch)
     }
 
     // establish the list of globs based on the list of includes
-    fn get_patterns(&self) -> Vec<Pattern> {
+    fn get_patterns(&self) -> Result<Vec<Pattern>, DocumentError> {
         let mut patterns: Vec<Pattern> = Vec::new();
         for buf in self.include.clone().unwrap_or_default() {
             patterns.push(
@@ -94,7 +101,10 @@ impl Document {
             println!("No include value provided. Using wildcard glob.");
             patterns.push(Pattern::new("*").expect("Error using wildcard glob."));
         }
-        patterns
+        if patterns.is_empty() {
+            return Err(DocumentError::BookFiltersNoContentError);
+        };
+        Ok(patterns)
     }
 
     // filter the book content based on include/exclude values
@@ -117,7 +127,9 @@ impl Document {
                 }
             }
         }
-
+        if content.is_empty() {
+            return Err(DocumentError::BookFiltersNoContentError);
+        };
         Ok(content)
     }
 
@@ -228,6 +240,7 @@ fn main() {
 pub enum DocumentError {
     PandocExecutionError(pandoc::PandocError),
     BookNoChaptersError,
+    BookFiltersNoContentError,
 }
 
 impl Error for DocumentError {}
@@ -237,7 +250,8 @@ impl fmt::Display for DocumentError {
         use DocumentError::*;
         match &*self {
             PandocExecutionError(e) => DocumentError::process_pandoc_err(e),
-            BookNoChaptersError => eprintln!("\n[ERROR]\t The Book contains no chapters!"),
+            BookNoChaptersError => eprintln!("\n[ERROR]\tNo markdown files match the specified include and/or exclude filters.\n[ERROR]\tVerify your filenames and filters are correct."),
+            BookFiltersNoContentError => eprintln!("\n[ERROR]\tThe provided include/exclude filters do not match any content."),
         }
         Ok(())
     }
