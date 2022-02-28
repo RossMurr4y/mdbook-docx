@@ -1,9 +1,9 @@
-use std::{io, fmt, error::Error, path::PathBuf};
-use mdbook::{BookItem};
-use mdbook::renderer::RenderContext;
-use pandoc::{Pandoc,MarkdownExtension, PandocOption, PandocError};
-use serde_derive::{Deserialize};
 use glob::Pattern;
+use mdbook::renderer::RenderContext;
+use mdbook::BookItem;
+use pandoc::{Pandoc, MarkdownExtension, PandocError, PandocOption};
+use serde_derive::Deserialize;
+use std::{error::Error, fmt, io::{self}, path::PathBuf};
 
 #[derive(Debug, Deserialize)]
 pub struct DocumentList {
@@ -19,12 +19,13 @@ impl Default for DocumentList {
 
 impl DocumentList {
     fn process(self, context: RenderContext) -> Result<(), DocumentError> {
-
         for doc in self.documents {
             let result = doc.process(context.clone());
             // if this itteration has an error, return the error
             // else loop continues
-            if let Err(e) = result { return Err(e) };
+            if let Err(e) = result {
+                return Err(e);
+            };
         }
 
         Ok(())
@@ -55,9 +56,7 @@ impl Default for Document {
 }
 
 impl Document {
-
-    fn get_chapters(&self, context: &RenderContext) -> Vec<PathBuf> {
-
+    fn get_chapters(&self, context: &RenderContext) -> Result<Vec<PathBuf>, DocumentError> {
         // valid globs
         let patterns = self.get_patterns();
 
@@ -65,7 +64,6 @@ impl Document {
         for item in context.book.iter() {
             if let BookItem::Chapter(ref c) = *item {
                 if c.path.is_some() {
-
                     let mut pattern_match = false;
                     for p in &patterns {
                         if p.matches_path(c.path.clone().unwrap().as_path()) {
@@ -78,14 +76,18 @@ impl Document {
                 }
             }
         }
-        ch
+        if ch.is_empty() { return Err(DocumentError::BookNoChaptersError) };
+        Ok(ch)
     }
 
     // establish the list of globs based on the list of includes
     fn get_patterns(&self) -> Vec<Pattern> {
         let mut patterns: Vec<Pattern> = Vec::new();
         for buf in self.include.clone().unwrap_or_default() {
-            patterns.push(Pattern::new(buf.to_str().unwrap()).expect("Unable to create Pattern from provided include."));
+            patterns.push(
+                Pattern::new(buf.to_str().unwrap())
+                    .expect("Unable to create Pattern from provided include."),
+            );
         }
         // if patterns remains empty, use wildcard catch-all glob
         if patterns.len() == 0 {
@@ -96,11 +98,9 @@ impl Document {
     }
 
     // filter the book content based on include/exclude values
-    fn get_filtered_content(&self, context: &RenderContext) -> String {
-        
+    fn get_filtered_content(&self, context: &RenderContext) -> Result<String, DocumentError> {
         let mut content = String::new();
-        let chapters = self.get_chapters(context);
-        //println!("Filtered content: {:#?}", &chapters);
+        let chapters = self.get_chapters(context)?;
 
         for item in context.book.iter() {
             if let BookItem::Chapter(ref ch) = *item {
@@ -117,9 +117,8 @@ impl Document {
                 }
             }
         }
-        
-        // return content
-        content
+
+        Ok(content)
     }
 
     fn process(self, context: RenderContext) -> Result<(), DocumentError> {
@@ -127,26 +126,35 @@ impl Document {
         let pandoc_config = PandocConfig::default();
 
         // set the content
-        let content = self.get_filtered_content(&context);
+        let content = self.get_filtered_content(&context)?;
 
         let mut pandoc = Pandoc::new();
-        pandoc.set_input_format(pandoc::InputFormat::MarkdownGithub, pandoc_config.input_extensions);
+        pandoc.set_input_format(
+            pandoc::InputFormat::MarkdownGithub,
+            pandoc_config.input_extensions,
+        );
         pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
         pandoc.set_output_format(pandoc::OutputFormat::Docx, pandoc_config.output_extensions);
         pandoc.set_output(pandoc::OutputKind::File(self.filename));
 
         // set pandoc options
         let src_path = PathBuf::from(&context.root).join("src");
-        pandoc.add_option(pandoc::PandocOption::DataDir(context.root.clone()));
-        pandoc.add_option(pandoc::PandocOption::ResourcePath(vec!(src_path.clone())));
-        pandoc.add_option(pandoc::PandocOption::AtxHeaders);
-        pandoc.add_option(pandoc::PandocOption::ReferenceLinks);
+        pandoc.add_option(PandocOption::DataDir(context.root.clone()));
+        pandoc.add_option(PandocOption::ResourcePath(vec![src_path.clone()]));
+        pandoc.add_option(PandocOption::AtxHeaders);
+        pandoc.add_option(PandocOption::ReferenceLinks);
 
         // if a heading offset was specified in the config, use it
-        if let Some(o) = self.offset_headings_by { pandoc.add_option(pandoc::PandocOption::ShiftHeadingLevelBy(o)); }
+        if let Some(o) = self.offset_headings_by {
+            pandoc.add_option(pandoc::PandocOption::ShiftHeadingLevelBy(o));
+        }
         // if a template was specified in the config, use it
-        if let Some(t) = self.template { pandoc.add_option(PandocOption::ReferenceDoc(PathBuf::from(context.root).join(t))); }
-        
+        if let Some(t) = self.template {
+            pandoc.add_option(PandocOption::ReferenceDoc(
+                PathBuf::from(context.root).join(t),
+            ));
+        }
+
         // output the pandoc cmd for debugging
         pandoc.set_show_cmdline(true);
 
@@ -154,12 +162,11 @@ impl Document {
 
         // If pandoc errored, present the error in our DocumentError
         if let Err(e) = result {
-            return Err(DocumentError::PandocExecutionError(e))
+            return Err(DocumentError::PandocExecutionError(e));
         }
 
         Ok(())
     }
-
 }
 
 pub struct PandocConfig {
@@ -170,25 +177,24 @@ pub struct PandocConfig {
 
 impl Default for PandocConfig {
     fn default() -> Self {
-        Self { 
+        Self {
             input_extensions: vec![
-                MarkdownExtension::PipeTables, 
-                MarkdownExtension::RawHtml, 
-                MarkdownExtension::AutolinkBareUris, 
-                MarkdownExtension::AutoIdentifiers, 
-                MarkdownExtension::HardLineBreaks, 
+                MarkdownExtension::PipeTables,
+                MarkdownExtension::RawHtml,
+                MarkdownExtension::AutolinkBareUris,
+                MarkdownExtension::AutoIdentifiers,
+                MarkdownExtension::HardLineBreaks,
                 MarkdownExtension::BlankBeforeHeader,
                 MarkdownExtension::TableCaptions,
                 MarkdownExtension::PandocTitleBlock,
                 MarkdownExtension::YamlMetadataBlock,
                 MarkdownExtension::ImplicitHeaderReferences,
-            ], 
+            ],
             output_extensions: vec![],
-            content: Default::default() 
+            content: Default::default(),
         }
     }
 }
-
 
 fn run() -> Result<(), DocumentError> {
     let mut stdin = io::stdin();
@@ -208,19 +214,20 @@ fn run() -> Result<(), DocumentError> {
     list.process(ctx.clone())
 }
 
-
 fn main() {
-
     let r = run();
     if let Err(e) = r {
-        panic!("\n\nAn error has occurred while creating the document.\n{}", e);
+        panic!(
+            "\n\nAn error has occurred while creating the document.\n{}",
+            e
+        );
     }
-
 }
 
 #[derive(Debug)]
 pub enum DocumentError {
     PandocExecutionError(pandoc::PandocError),
+    BookNoChaptersError,
 }
 
 impl Error for DocumentError {}
@@ -229,21 +236,34 @@ impl fmt::Display for DocumentError {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         use DocumentError::*;
         match &*self {
-            PandocExecutionError(e) => { DocumentError::process_pandoc_err(e)},
+            PandocExecutionError(e) => DocumentError::process_pandoc_err(e),
+            BookNoChaptersError => eprintln!("\n[ERROR]\t The Book contains no chapters!"),
         }
         Ok(())
     }
 }
 
 impl DocumentError {
-    fn process_pandoc_err(error: &PandocError){
+    fn process_pandoc_err(error: &PandocError) {
         match error {
-            PandocError::BadUtf8Conversion(_) => { eprintln!("\n[ERROR]\tThe reference template is not valid UTF-8.") },
-            PandocError::IoErr(e) => { eprintln!("\n[ERROR]\tError reading or writing file. Details: {}", e) },
-            PandocError::Err(_e) => { eprintln!("\n[ERROR]\tAn input file could not be found.") },
-            PandocError::NoOutputSpecified => { eprintln!("\n[ERROR]\tNo output file has been specified.") },
-            PandocError::NoInputSpecified => { eprintln!("\n[ERROR]\tNo input has been provided.") },
-            PandocError::PandocNotFound => { eprintln!("\n[ERROR]\tPandoc not found. Check that pandoc is installed, and available on the $PATH.") },
+            PandocError::BadUtf8Conversion(_) => {
+                eprintln!("\n[ERROR]\tThe reference template is not valid UTF-8.")
+            }
+            PandocError::IoErr(e) => {
+                eprintln!("\n[ERROR]\tError reading or writing file. Details: {}", e)
+            }
+            PandocError::Err(_e) => {
+                eprintln!("\n[ERROR]\tAn input file could not be found.")
+            }
+            PandocError::NoOutputSpecified => {
+                eprintln!("\n[ERROR]\tNo output file has been specified.")
+            }
+            PandocError::NoInputSpecified => {
+                eprintln!("\n[ERROR]\tNo input has been provided.")
+            }
+            PandocError::PandocNotFound => {
+                eprintln!("\n[ERROR]\tPandoc not found. Check that pandoc is installed, and available on the $PATH.")
+            }
         }
     }
 }
