@@ -164,12 +164,15 @@ impl Document {
 
     fn process(self, context: RenderContext) -> Result<()> {
         // get the static, non-configurable pandoc configuration
-        let pandoc_config = PandocConfig::default();
+        let mut pandoc_config = PandocConfig::default();
+        pandoc_config.assign_options(&context, &self);
 
         // set the content
         let content = self.get_filtered_content(&context)?;
 
         let mut pandoc = Pandoc::new();
+        pandoc.add_options(pandoc_config.options.as_slice());
+
         pandoc.set_input_format(
             pandoc::InputFormat::MarkdownGithub,
             pandoc_config.input_extensions,
@@ -178,31 +181,9 @@ impl Document {
         pandoc.set_output_format(pandoc::OutputFormat::Docx, pandoc_config.output_extensions);
         pandoc.set_output(pandoc::OutputKind::File(self.filename));
 
-        // set pandoc options
-        let src_path = PathBuf::from(&context.root).join("src");
-        pandoc.add_option(PandocOption::DataDir(context.root.clone()));
-        pandoc.add_option(PandocOption::ResourcePath(vec![src_path.clone()]));
-        pandoc.add_option(PandocOption::AtxHeaders);
-        pandoc.add_option(PandocOption::ReferenceLinks);
-
-        // if a heading offset was specified in the config, use it
-        if let Some(o) = self.offset_headings_by {
-            pandoc.add_option(pandoc::PandocOption::ShiftHeadingLevelBy(o));
-        }
-        // if a template was specified in the config, use it
-        if let Some(t) = self.template {
-            pandoc.add_option(PandocOption::ReferenceDoc(
-                PathBuf::from(context.root).join(t),
-            ));
-        }
-
-        // output the pandoc cmd for debugging
-        pandoc.set_show_cmdline(true);
-
-        let result = pandoc.execute();
-
+        // execute the pandoc cli and bail on an error
         // If pandoc errored, present the error in our DocumentError
-        if let Err(e) = result {
+        if let Err(e) = pandoc.execute() {
             bail!(e);
         }
 
@@ -213,6 +194,7 @@ impl Document {
 pub struct PandocConfig {
     pub input_extensions: Vec<MarkdownExtension>,
     pub output_extensions: Vec<MarkdownExtension>,
+    pub options: Vec<PandocOption>,
     pub content: String,
 }
 
@@ -232,8 +214,35 @@ impl Default for PandocConfig {
                 MarkdownExtension::ImplicitHeaderReferences,
             ],
             output_extensions: vec![],
+            options: vec![],
             content: Default::default(),
         }
+    }
+}
+
+impl PandocConfig {
+    // Assigns the required list of pandoc options to the PandocConfig
+    // so later they can be set on the Pandoc struct
+    fn assign_options(&mut self, context: &RenderContext, doc: &Document) -> &Self {
+        // directory of book.toml and root of where we'll look for content
+        let data_dir = context.root.clone();
+        // path of the src directory
+        let src_path = PathBuf::from(&data_dir).join("src");
+        self.options = vec![
+            PandocOption::DataDir(data_dir.clone()),
+            PandocOption::ResourcePath(vec![src_path]),
+            PandocOption::AtxHeaders,
+            PandocOption::ReferenceLinks,
+        ];
+
+        // set the shift-heading-level option if specified
+        if let Some(i) = doc.offset_headings_by {
+            self.options.push(PandocOption::ShiftHeadingLevelBy(i))
+        };
+        if let Some(path) = &doc.template {
+            self.options.push(PandocOption::ReferenceDoc(data_dir.join(path)))
+        };
+        self
     }
 }
 
