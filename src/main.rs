@@ -1,14 +1,43 @@
+use anyhow::{bail, Result};
+use chrono::Local;
+use env_logger::Builder;
 use glob::Pattern;
+use log::{error, LevelFilter};
 use mdbook::renderer::RenderContext;
 use mdbook::BookItem;
-use pandoc::{MarkdownExtension, Pandoc, PandocError, PandocOption};
+use pandoc::{MarkdownExtension, Pandoc, PandocOption};
 use serde_derive::Deserialize;
 use std::{
-    error::Error,
-    fmt,
-    io::{self},
+    env,
+    io::{self, Write},
     path::PathBuf,
 };
+
+fn init_logger() {
+    let mut builder = Builder::new();
+
+    builder.format(|formatter, record| {
+        writeln!(
+            formatter,
+            "{} [{}] ({}): {}",
+            Local::now().format("%Y-%m-%d %H:%M:%S"),
+            record.level(),
+            record.target(),
+            record.args()
+        )
+    });
+
+    if let Ok(var) = env::var("RUST_LOG") {
+        builder.parse_filters(&var);
+    } else {
+        // if no RUST_LOG provided, default to logging at the Info level
+        builder.filter(None, LevelFilter::Info);
+        // Filter extraneous html5ever not-implemented messages
+        builder.filter(Some("html5ever"), LevelFilter::Error);
+    }
+
+    builder.init();
+}
 
 #[derive(Debug, Deserialize)]
 pub struct DocumentList {
@@ -23,13 +52,13 @@ impl Default for DocumentList {
 }
 
 impl DocumentList {
-    fn process(self, context: RenderContext) -> Result<(), DocumentError> {
+    fn process(self, context: RenderContext) -> Result<()> {
         for doc in self.documents {
             let result = doc.process(context.clone());
             // if this itteration has an error, return the error
             // else loop continues
             if let Err(e) = result {
-                return Err(e);
+                bail!(e)
             };
         }
 
@@ -61,7 +90,7 @@ impl Default for Document {
 }
 
 impl Document {
-    fn get_chapters(&self, context: &RenderContext) -> Result<Vec<PathBuf>, DocumentError> {
+    fn get_chapters(&self, context: &RenderContext) -> Result<Vec<PathBuf>> {
         // valid globs
         let patterns = self.get_patterns()?;
 
@@ -82,13 +111,13 @@ impl Document {
             }
         }
         if ch.is_empty() {
-            return Err(DocumentError::BookNoChaptersError);
+            bail!("No markdown files match the specified include and/or exclude filters. Verify your filenames and filters are correct.")
         };
         Ok(ch)
     }
 
     // establish the list of globs based on the list of includes
-    fn get_patterns(&self) -> Result<Vec<Pattern>, DocumentError> {
+    fn get_patterns(&self) -> Result<Vec<Pattern>> {
         let mut patterns: Vec<Pattern> = Vec::new();
         for buf in self.include.clone().unwrap_or_default() {
             patterns.push(
@@ -102,13 +131,13 @@ impl Document {
             patterns.push(Pattern::new("*").expect("Error using wildcard glob."));
         }
         if patterns.is_empty() {
-            return Err(DocumentError::BookFiltersNoContentError);
+            bail!("No files matched the provided include / exclude filters.");
         };
         Ok(patterns)
     }
 
     // filter the book content based on include/exclude values
-    fn get_filtered_content(&self, context: &RenderContext) -> Result<String, DocumentError> {
+    fn get_filtered_content(&self, context: &RenderContext) -> Result<String> {
         let mut content = String::new();
         let chapters = self.get_chapters(context)?;
 
@@ -128,12 +157,12 @@ impl Document {
             }
         }
         if content.is_empty() {
-            return Err(DocumentError::BookFiltersNoContentError);
+            bail!("The provided include/exclude filters do not match any content.");
         };
         Ok(content)
     }
 
-    fn process(self, context: RenderContext) -> Result<(), DocumentError> {
+    fn process(self, context: RenderContext) -> Result<()> {
         // get the static, non-configurable pandoc configuration
         let pandoc_config = PandocConfig::default();
 
@@ -174,7 +203,7 @@ impl Document {
 
         // If pandoc errored, present the error in our DocumentError
         if let Err(e) = result {
-            return Err(DocumentError::PandocExecutionError(e));
+            bail!(e);
         }
 
         Ok(())
@@ -208,7 +237,7 @@ impl Default for PandocConfig {
     }
 }
 
-fn run() -> Result<(), DocumentError> {
+fn run() -> Result<()> {
     let mut stdin = io::stdin();
     let ctx = RenderContext::from_json(&mut stdin)
         .expect("Error with the input data. Is everything formatted correctly?");
@@ -227,57 +256,10 @@ fn run() -> Result<(), DocumentError> {
 }
 
 fn main() {
+    init_logger();
+
     let r = run();
     if let Err(e) = r {
-        panic!(
-            "\n\nAn error has occurred while creating the document.\n{}",
-            e
-        );
-    }
-}
-
-#[derive(Debug)]
-pub enum DocumentError {
-    PandocExecutionError(pandoc::PandocError),
-    BookNoChaptersError,
-    BookFiltersNoContentError,
-}
-
-impl Error for DocumentError {}
-
-impl fmt::Display for DocumentError {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        use DocumentError::*;
-        match &*self {
-            PandocExecutionError(e) => DocumentError::process_pandoc_err(e),
-            BookNoChaptersError => eprintln!("\n[ERROR]\tNo markdown files match the specified include and/or exclude filters.\n[ERROR]\tVerify your filenames and filters are correct."),
-            BookFiltersNoContentError => eprintln!("\n[ERROR]\tThe provided include/exclude filters do not match any content."),
-        }
-        Ok(())
-    }
-}
-
-impl DocumentError {
-    fn process_pandoc_err(error: &PandocError) {
-        match error {
-            PandocError::BadUtf8Conversion(_) => {
-                eprintln!("\n[ERROR]\tThe reference template is not valid UTF-8.")
-            }
-            PandocError::IoErr(e) => {
-                eprintln!("\n[ERROR]\tError reading or writing file. Details: {}", e)
-            }
-            PandocError::Err(_e) => {
-                eprintln!("\n[ERROR]\tAn input file could not be found.")
-            }
-            PandocError::NoOutputSpecified => {
-                eprintln!("\n[ERROR]\tNo output file has been specified.")
-            }
-            PandocError::NoInputSpecified => {
-                eprintln!("\n[ERROR]\tNo input has been provided.")
-            }
-            PandocError::PandocNotFound => {
-                eprintln!("\n[ERROR]\tPandoc not found. Check that pandoc is installed, and available on the $PATH.")
-            }
-        }
+        error!("An error has occurred while creating the document.\n{}", e);
     }
 }
