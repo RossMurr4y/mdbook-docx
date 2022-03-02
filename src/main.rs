@@ -5,7 +5,7 @@ use glob::Pattern;
 use log::{error, LevelFilter};
 use mdbook::renderer::RenderContext;
 use mdbook::BookItem;
-use pandoc::{MarkdownExtension, Pandoc, PandocOption};
+use pandoc::{OutputKind, MarkdownExtension, Pandoc, PandocOption};
 use serde_derive::Deserialize;
 use std::{
     env,
@@ -76,6 +76,10 @@ pub struct Document {
     pub include: Option<Vec<PathBuf>>,
     #[serde(default)]
     pub offset_headings_by: Option<i32>,
+    #[serde(default)]
+    pub append: Option<Vec<PathBuf>>,
+    #[serde(default)]
+    pub prepend: Option<Vec<PathBuf>>,
 }
 
 impl Default for Document {
@@ -85,6 +89,8 @@ impl Default for Document {
             template: Some(PathBuf::from("reference.docx".to_string())),
             include: Some(vec![PathBuf::from("*".to_string())]),
             offset_headings_by: None,
+            append: None,
+            prepend: None,
         }
     }
 }
@@ -179,13 +185,52 @@ impl Document {
         );
         pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
         pandoc.set_output_format(pandoc::OutputFormat::Docx, pandoc_config.output_extensions);
-        pandoc.set_output(pandoc::OutputKind::File(self.filename));
+        pandoc.set_output(OutputKind::File(self.filename.clone()));
+
+        pandoc.set_show_cmdline(true);
 
         // execute the pandoc cli and bail on an error
         // If pandoc errored, present the error in our DocumentError
         if let Err(e) = pandoc.execute() {
             bail!(e);
         }
+
+        // now the markdown > docx has completed, combine it
+        // with any append/prepend files if specified
+        self.combine_sections(&context)?;
+
+        Ok(())
+    }
+
+    fn combine_sections(self, context: &RenderContext) -> Result<()> {
+        let mut parts: Vec<PathBuf> = vec![];
+
+        // init our parts list with the prepends
+        if let Some(paths) = &self.prepend {
+            for p in paths {
+                parts.push(context.root.clone().join(p))
+            }
+        };
+        // add our main file to the vec
+        parts.push(context.root.clone().join("book/docx").join(self.filename.clone()));
+        // complete our parts list with any appends
+        if let Some(paths) = &self.append {
+            for p in paths {
+                parts.push(context.root.clone().join(p))
+            }
+        };
+
+        // have pandoc merge them
+        let mut pandoc = Pandoc::new();
+        pandoc.set_output(OutputKind::File(self.filename.clone()));
+        for part in parts {
+            pandoc.add_input(&part);
+        };
+
+        let mut config = PandocConfig::default();
+        config.assign_options(context, &self);
+        pandoc.add_options(config.options.as_slice());
+        pandoc.execute()?;
 
         Ok(())
     }
@@ -239,9 +284,23 @@ impl PandocConfig {
         if let Some(i) = doc.offset_headings_by {
             self.options.push(PandocOption::ShiftHeadingLevelBy(i))
         };
+        // set the reference template if specified
         if let Some(path) = &doc.template {
-            self.options.push(PandocOption::ReferenceDoc(data_dir.join(path)))
+            self.options.push(PandocOption::ReferenceDoc(data_dir.clone().join(path)))
         };
+        // set the file to prepend to the document if specified
+        if let Some(path) = &doc.prepend {
+            for p in path {
+                self.options.push(PandocOption::IncludeBeforeBody(data_dir.clone().join(p.to_owned())))
+            }
+        };
+        // set the file(s) to append to the document if specified
+        if let Some(path) = &doc.append {
+            for p in path {
+                self.options.push(PandocOption::IncludeAfterBody(data_dir.join(p.to_owned())))
+            }
+        };
+
         self
     }
 }
