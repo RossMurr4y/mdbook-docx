@@ -1,6 +1,12 @@
 # mdbook-docx
 
-A Docx backend for [mdBook](https://rust-lang.github.io/mdBook/)
+A Docx backend for [mdBook](https://rust-lang.github.io/mdBook/).
+
+`mdbook-docx` translates your mdBook `.md` (Markdown) files into Word `.docx` documents.
+
+Styling of the content is achieved with a template `.docx` file. The content of the template is ignored but the **style definitions** are used to construct the final document.
+
+[Example](./examples/reference.docx)
 
 ## Usage
 
@@ -47,7 +53,10 @@ The mandatory and default settings are provided below.
 
 ### Docker
 
-A minimal docker image is published containing all the prerequisites, `mdbook`, `mdbook-docx` and most of the common `mdbook` backends.
+There are two primary docker images published, based on your needs:
+
+- `rossmurr4y/mdbook-docx` contains only `mdBook` and `mdbook-docx`
+- `rossmurr4y/mdbook` includes a number of additional backends as well as includes laTex and pdf-creation tooling, however it is much larger.
 
 ```terminal
 # update your volume mount path as necessary.
@@ -57,7 +66,7 @@ docker run -it --volume $(pwd):/book rossmurr4y/mdbook build
 
 ## Configuration
 
-The configuration accepts an array of `Documents`. At least one must be specified.
+The configuration accepts an array of `Documents`. At least one must be specified, however you can create multiple documents from the once source.
 
 ### Mandatory
 
@@ -66,7 +75,6 @@ The configuration accepts an array of `Documents`. At least one must be specifie
 
 [output.docx]
 [[output.docx.documents]]
-filename = "example-output.docx"
 ```
 
 ### Defaults
@@ -79,15 +87,21 @@ filename = "example-output.docx"
 filename = "output.docx"
 template = "reference.docx"
 include = ["*"]
+offset_headings_by = 0
+append = []
+prepend = []
 ```
 
 | configuration | description | valid values |
 | ------------- | ----------- | ------------ |
-| filename | the name of the file output to produce, including extension | |
-| template | path to a template file to use for styling only | Path starts at the same level as the book.toml |
-| include | An array of paths to include in the document output. Allows for Unix shell style patterns/globs. | Paths start within the books src dir. They must be present in your SUMMARY.md file (or added to the book via other pre-processor) or they will not be included. |
+| filename | the name of the file output to produce, including extension | `string` Defaults to `output.docx` |
+| template | path to a template file to use for styling only | `string` File path relative to your book.toml |
+| include | An array of paths to include in the document output. Allows for Unix shell style patterns/globs. | `string[]` Relative to your `./src` dir. Files must be present in your SUMMARY.md |
+| offset_headings_by | By default, Markdown H1's become the `title` style type, and Markdown H2's translate to Docx H1's. This allows you to adjust this by shifting the Markdown H1s up/down as desired. | `int` -1, or 1 will usually do |
+| append | An array of filepaths to sequentially append to the end of the generated file. Styles will be adjusted to match the primary output. | `string[]` Paths relative to your book.toml |
+| prepend | An array of filepaths to sequentially prepend to the start of the generated file. Styles will be adjusted to match the primary output. | `string[]` Paths relative to your book.toml |
 
-### Example
+### Examples
 
 ```toml
 ...
@@ -98,14 +112,24 @@ include = ["*"]
 [[output.docx.documents]]
 filename = "CompleteGuide.docx"
 
-# document created from just a subset of files, using explicit file names
+# just a subset of files using explicit file names
 [[output.docx.documents]]
 filename = "DeploymentGuide.docx"
 include = ["intro.md", "deployment_guide.md", "appendix_deployment_01.md"]
 
-# document created with a specific style template, with globs and filenames
+# specific style template with globs and filenames
 [[output.docx.documents]]
 filename = "TechnicalDesignGuide.docx"
 template = "TechnicalStyles.docx"
 include = ["intro.md", "tech_*.md", "reference_tables*.md", "**/appendix*tech*.md"]
+
+# - a specific title page and some legal-ese
+# - followed by the Markdown content
+# - followed by glossary of terms maintained elsewhere
+[[output.docx.documents]]
+filename = "ImportantReport.docx"
+template = "ReportStyles.docx"
+include = ["intro.md", "report_*.md", "charts*.md", "**/appendix*report*.md"]
+prepend = ["title-page.docx", "legal-template.docx"]
+append = [ "glossary.docx" ]
 ```
