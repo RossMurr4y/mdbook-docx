@@ -4,15 +4,18 @@ A Docx backend for [mdBook](https://rust-lang.github.io/mdBook/).
 
 `mdbook-docx` translates your mdBook `.md` (Markdown) files into Word `.docx` documents.
 
-Styling of the content is achieved with a template `.docx` file. The content of the template is ignored but the **style definitions** are used to construct the final document.
+Styling of the content is achieved with a template `.docx` file. The content of the template is ignored but the **style definitions** are used to construct the final document. 
 
 [Example](./examples/reference.docx)
 
+
 ## Usage
 
-Update your `book.toml` with the docx backend.
+If you're new to mdBook, [get started here](https://rust-lang.github.io/mdBook/guide/installation.html).
 
-If you've only had the default html backend until now and you want to now produce both the HTML and Docx content, you should add both.
+Once you've a working mdBook, update your `book.toml` with the docx backend.
+
+If you've only had the default html backend until now and you want to now produce both the HTML and Docx content, you'll want to add both to continue building both.
 
 ```toml
 [book]
