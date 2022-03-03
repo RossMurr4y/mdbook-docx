@@ -35,6 +35,25 @@ Build your book to output your document(s) alongside the other backend outputs i
 mdbook build
 ```
 
+## Custom Styles
+
+Custom Styles are implemented for your document by providing a template .docx file.
+
+Make a copy of [this one](./examples/reference.docx) for convenience.
+
+Then within Word modify the style definitions. Save the Word document alongside your mdBook and update your book.toml to include the `template` property for your document.
+
+```toml
+...
+
+[output.docx]
+[[output.docx.documents]]
+filename = "output.docx"
+template = "path/to/custom/reference.docx"
+```
+
+Whenever you run `mdbook build` now, it will rebuild your document with the template's style definitions.
+
 ## Installation
 
 > `mdbook-docx` is currently in heavy development and is not yet available with cargo.
