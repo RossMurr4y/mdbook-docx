@@ -39,6 +39,14 @@ fn init_logger() {
     builder.init();
 }
 
+
+// A struct representing the output content of our Document
+#[derive(Debug, Deserialize, Default)]
+pub struct DocumentContent {
+    // our document content, as a single string.
+    value: String
+}
+
 #[derive(Debug, Deserialize)]
 pub struct DocumentList {
     #[serde(default)]
@@ -143,7 +151,7 @@ impl Document {
     }
 
     // filter the book content based on include/exclude values
-    fn get_filtered_content(&self, context: &RenderContext) -> Result<String> {
+    fn get_filtered_content(&self, context: &RenderContext) -> Result<DocumentContent> {
         let mut content = String::new();
         let chapters = self.get_chapters(context)?;
 
@@ -165,7 +173,7 @@ impl Document {
         if content.is_empty() {
             bail!("The provided include/exclude filters do not match any content.");
         };
-        Ok(content)
+        Ok(DocumentContent { value: content })
     }
 
     fn process(self, context: RenderContext) -> Result<()> {
@@ -183,7 +191,7 @@ impl Document {
             pandoc::InputFormat::MarkdownGithub,
             pandoc_config.input_extensions,
         );
-        pandoc.set_input(pandoc::InputKind::Pipe(content.to_string()));
+        pandoc.set_input(pandoc::InputKind::Pipe(content.value));
         pandoc.set_output_format(pandoc::OutputFormat::Docx, pandoc_config.output_extensions);
         pandoc.set_output(OutputKind::File(self.filename.clone()));
 
@@ -240,7 +248,7 @@ pub struct PandocConfig {
     pub input_extensions: Vec<MarkdownExtension>,
     pub output_extensions: Vec<MarkdownExtension>,
     pub options: Vec<PandocOption>,
-    pub content: String,
+    pub content: DocumentContent,
 }
 
 impl Default for PandocConfig {
