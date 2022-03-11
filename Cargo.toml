@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 mdbook = "0.4.15"
-pandoc = "0.8.8"
+pandoc = "0.8.9"
 serde = "1.0.130"
 serde_derive = "1.0.130"
 toml = "0.5.8"
