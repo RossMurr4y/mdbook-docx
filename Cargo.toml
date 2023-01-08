@@ -6,14 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mdbook = "0.4.15"
-pandoc = "0.8.9"
-serde = "1.0.130"
-serde_derive = "1.0.130"
-toml = "0.5.8"
-glob = "0.3.0"
-env_logger = "0.9.0"
-chrono = "0.4"
-log = "0.4"
-anyhow = "1.0.55"
-thiserror = "1.0.30"
+mdbook = "0.4.25"
+docx-rs = "0.4.6"
+markdown = "0.3.0"
+toml = "0.5.10"
+serde = { version = "1.0.152", features = ["derive"] }
