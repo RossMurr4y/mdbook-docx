@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use markdown::Block;
 
 // A text formatting style definition.
 
@@ -45,6 +46,17 @@ impl Style {
         };
     }
 
+}
+
+struct Section {
+    // A block of tokenized markdown content.
+    block: Block,
+    // The style alias that the corresponding Block should be formatted in.
+    style: String,
+    // The markdown file globs to which define this sections content.
+    // Blocks from files that match these globs will be added to this section
+    // and be formatted with the style alias defined by the style field.
+    includes: Vec<String>,
 }
 
 fn main() {
