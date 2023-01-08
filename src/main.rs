@@ -26,6 +26,28 @@ impl Default for Style {
     }
 }
 
+impl Style {
+
+    // looks for a Styles.toml file in the current directory and 
+    // deserialises the file into a vector of Style structs
+    fn get_styles() -> Vec<Style> {
+        // read an existing Styles.toml or create it and populate it with the default style
+        match std::fs::read_to_string("Styles.toml") {
+            Ok(s) => {
+                return toml::from_str(&s)
+                    .expect("Failed to parse Styles.toml - check the file is valid TOML.");
+            },
+            Err(_) => {
+                let mut styles = Vec::new();
+                styles.push(Style::default());
+                return styles;
+            }
+        };
+    }
+
+}
+
 fn main() {
-    println!("Hello, world!");
+    let styles = Style::get_styles();
+    println!("{:?}", styles);
 }
