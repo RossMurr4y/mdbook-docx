@@ -11,3 +11,4 @@ docx-rs = "0.4.6"
 markdown = "0.3.0"
 toml = "0.5.10"
 serde = { version = "1.0.152", features = ["derive"] }
+derive_more = "0.99.17"

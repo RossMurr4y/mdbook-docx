@@ -1,8 +1,59 @@
-use serde::{Deserialize, Serialize};
-use markdown::Block;
+extern crate docx_rs;
+extern crate serde;
+extern crate derive_more;
+use docx_rs::{Paragraph};
+
+// newtype struct for markdown::ListItem that allows deserialization
+use serde::{Serialize, Deserialize};
+#[derive(Debug, Clone, Serialize)]
+#[serde(try_from = "markdown::ListItem", into = "ListItem")]
+pub(crate) struct ListItem(markdown::ListItem);
+impl From<ListItem> for markdown::ListItem {
+    fn from(item: ListItem) -> Self {
+        item.0
+    }
+}
+use std::convert::TryFrom;
+impl TryFrom<markdown::ListItem> for ListItem {
+    type Error = ();
+    fn try_from(value: markdown::ListItem) -> Result<Self, Self::Error> {
+        Ok(ListItem(value))
+    }
+}
+
+// newtype struct for markdown::Block that allows deserialization
+#[derive(Debug, Clone, Serialize)]
+#[serde(try_from = "markdown::Block", into = "Block")]
+pub(crate) struct Block(markdown::Block);
+impl From<Block> for markdown::Block {
+    fn from(block: Block) -> Self {
+        block.0
+    }
+}
+impl TryFrom<markdown::Block> for Block {
+    type Error = ();
+    fn try_from(value: markdown::Block) -> Result<Self, Self::Error> {
+        Ok(Block(value))
+    }
+}
+
+// newtype struct for markdown::Span that allows deserialization
+#[derive(Debug, Clone, Serialize)]
+#[serde(try_from = "markdown::Span", into = "Span")]
+pub(crate) struct Span(markdown::Span);
+impl From<Span> for markdown::Span {
+    fn from(span: Span) -> Self {
+        span.0
+    }
+}
+impl TryFrom<markdown::Span> for Span {
+    type Error = ();
+    fn try_from(value: markdown::Span) -> Result<Self, Self::Error> {
+        Ok(Span(value))
+    }
+}
 
 // A text formatting style definition.
-
 #[derive(Serialize, Deserialize, Debug)]
 struct Style {
     // the name that the style is refrenced by in a section configuration
@@ -39,7 +90,7 @@ impl Style {
                     .expect("Failed to parse Styles.toml - check the file is valid TOML.");
             },
             Err(_) => {
-                let mut styles = Vec::new();
+                let mut styles : Vec<Style> = Vec::new();
                 styles.push(Style::default());
                 return styles;
             }
@@ -48,6 +99,7 @@ impl Style {
 
 }
 
+#[derive(Debug, Clone, Serialize)]
 struct Section {
     // A block of tokenized markdown content.
     block: Block,
@@ -62,4 +114,15 @@ struct Section {
 fn main() {
     let styles = Style::get_styles();
     println!("{:?}", styles);
+
+    let s = "Hello world".to_string();
+    let flibs = markdown::Span::Text(s);
+    let p = vec![flibs];
+
+    let section = Section {
+        block: Block(markdown::Block::Paragraph(p)),
+        style: String::from("default"),
+        includes: vec![String::from("*.md")],
+    };
+    println!("{:?}", section);
 }
