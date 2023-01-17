@@ -160,6 +160,42 @@ struct Section {
     includes: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct DocumentConfig {
+    // the filename of the document to be produced by this
+    // configuration set.
+    filename: String,
+    // a vector of file patterns / globs used to filter the input
+    // markdown files to a subset. By default it matches everything.
+    // note: any Sections listed on a DocumentConfig may have their
+    // own includes attribute. Those will further filter the matching
+    // values here. Patterns specified on a child Section that do
+    // not also match the DocumentConfig patterns will be skipped.
+    // If using Sections it is recommended to use a broader filter
+    // at this level for this reason.
+    #[serde(default = "DocumentConfig::default_includes")]
+    includes: Vec<String>,
+    // a vector of optional child document Sections which require
+    // alternative Styles. Each part of your final document that
+    // requires a different style to your defined "default" should
+    // have its own Section with corresponding includes patterns.
+    // Markdown content that does not match any includes pattern
+    // on any of the Sections will receive your "default" style.
+    #[serde(default = "DocumentConfig::default_sections")]
+    sections: Vec<Section>
+}
+impl DocumentConfig {
+    // the default function for the includes attribute when none is
+    // defined. Returns a Vector of 1 pattern that when converted
+    // later to a glob, will match all markdown content in the
+    // RenderContext's book.sections
+    fn default_includes() -> Vec<String> { vec!["*".to_string()] }
+
+    // the default function for the sections attribute when none is
+    // defined. Returns an empty vector.
+    fn default_sections() -> Vec<Section> { vec![] }
+}
+
 use std::io;
 use mdbook::renderer::RenderContext;
 fn main() {
