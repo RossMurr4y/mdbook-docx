@@ -115,7 +115,7 @@ use std::io;
 use mdbook::renderer::RenderContext;
 fn main() {
     let styles = Style::get_styles();
-    println!("{:?}", styles);
+    println!("{:#?}", styles);
 
     let mut stdin = io::stdin();
     
