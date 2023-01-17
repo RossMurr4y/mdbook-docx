@@ -1,1 +1,8 @@
-[stye]
+[default]
+color = "#FFFFFF"
+
+[[style]]
+alias = "flibs"
+font = "Arial"
+size = 22
+color = "#FF0000"
