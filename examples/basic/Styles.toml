@@ -1,8 +1,8 @@
 [default]
 color = "#FFFFFF"
 
-[[style]]
-alias = "flibs"
+[[styles]]
+alias = "example_a"
 font = "Arial"
 size = 22
 color = "#FF0000"

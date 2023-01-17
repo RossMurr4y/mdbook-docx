@@ -3,6 +3,7 @@ extern crate serde;
 extern crate derive_more;
 extern crate mdbook;
 
+use docx_rs::Document;
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
 #[derive(Debug, Clone, Serialize)]
@@ -110,7 +111,7 @@ struct Styles {
     // a vector of styles that can be referenced by alias in a section configuration
 
     #[serde(default = "Styles::empty_styles")]
-    style: Vec<Style>,
+    styles: Vec<Style>,
 }
 impl Styles {
 
@@ -196,15 +197,46 @@ impl DocumentConfig {
     fn default_sections() -> Vec<Section> { vec![] }
 }
 
+// newtype struct for mdbook::renderer::RenderContext.
+// this is necessary so that new methods can be added to RenderContext
+// that allows direct conversion to/from RenderContext and
+// DocumentConfig.
+#[derive(Debug, Clone, Serialize)]
+#[serde(try_from = "mdbook::renderer::RenderContext", into = "RenderContext")]
+pub(crate) struct RenderContext(mdbook::renderer::RenderContext);
+impl From<RenderContext> for mdbook::renderer::RenderContext {
+    fn from(ctx: RenderContext) -> Self {
+        ctx.0
+    }
+}
+impl TryFrom<mdbook::renderer::RenderContext> for RenderContext {
+    type Error = ();
+    fn try_from(value: mdbook::renderer::RenderContext) -> Result<Self, Self::Error> {
+        Ok(RenderContext(value))
+    }
+}
+impl From<RenderContext> for DocumentConfig {
+    fn from(ctx: RenderContext) -> Self {
+        todo!("implement code to turn DocumentConfig into RenderContext")
+    }
+}
+impl TryFrom<DocumentConfig> for RenderContext {
+    type Error = ();
+    fn try_from(value: DocumentConfig) -> Result<Self, Self::Error> {
+        let r = todo!("implement code to turn RenderContext into Ok(DocumentConfig)");
+        Ok(r)
+    }
+}
+
 use std::io;
-use mdbook::renderer::RenderContext;
 fn main() {
     let styles: Styles = Styles::get_styles();
     println!("{:#?}", styles);
 
     let mut stdin = io::stdin();
     
-    let ctx = RenderContext::from_json(&mut stdin).unwrap();
+    let ctx = mdbook::renderer::RenderContext::from_json(&mut stdin)
+        .expect("Failure to create RenderContext. Check the syntax of Book.toml is correct.");
 
 
     println!("{:#?}", ctx);
