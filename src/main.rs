@@ -86,13 +86,19 @@ impl Style {
 
         // current directory
         let current_dir = std::env::current_dir()
-            .expect("Could not retrieve Styles.toml. Failed to identify the current directory.");
+            .expect("Failed to identify the current directory.");
+        let src_dir = current_dir
+            .parent()
+            .expect("Failed to parse the parent directory.")
+            .to_str()
+            .expect("Failed to parse the parent directory to a string.");
 
-        let styles_file = format!("{}/Styles.toml", current_dir.to_str().expect("Current directory could not be parsed to a string."));
+        let styles = format!("{}/Styles.toml", src_dir);
         // debug print the styls_file path
-        println!("Styles file: {}", styles_file);
+        println!("Styles file: {}", styles);
+
         // read an existing Styles.toml or create it and populate it with the default style
-        match std::fs::read_to_string(styles_file) {
+        match std::fs::read_to_string(styles) {
             Ok(s) => {
                 return toml::from_str(&s)
                     .expect("Failed to parse Styles.toml - check the file is valid TOML.");
