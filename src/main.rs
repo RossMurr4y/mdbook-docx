@@ -1,7 +1,7 @@
 extern crate docx_rs;
 extern crate serde;
 extern crate derive_more;
-use docx_rs::{Paragraph};
+extern crate mdbook;
 
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
@@ -111,18 +111,16 @@ struct Section {
     includes: Vec<String>,
 }
 
+use std::io;
+use mdbook::renderer::RenderContext;
 fn main() {
     let styles = Style::get_styles();
     println!("{:?}", styles);
 
-    let s = "Hello world".to_string();
-    let flibs = markdown::Span::Text(s);
-    let p = vec![flibs];
+    let mut stdin = io::stdin();
+    
+    let ctx = RenderContext::from_json(&mut stdin).unwrap();
 
-    let section = Section {
-        block: Block(markdown::Block::Paragraph(p)),
-        style: String::from("default"),
-        includes: vec![String::from("*.md")],
-    };
-    println!("{:?}", section);
+
+    println!("{:?}", ctx);
 }

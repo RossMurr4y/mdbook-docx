@@ -1,0 +1,8 @@
+[book]
+authors = ["Ross Murray"]
+language = "en"
+multilingual = false
+src = "src"
+title = "basic example"
+
+[output.docx]
