@@ -163,6 +163,7 @@ impl DocumentConfig {
     // defined. Returns an empty vector.
     fn default_sections() -> Vec<Section> { vec![] }
 
+    // builder for initializing a new DocumentConfig.
     fn new(ctx: &RenderContext) -> DocumentConfig {
         ctx
             .clone()
@@ -170,6 +171,26 @@ impl DocumentConfig {
             .get_deserialized_opt("output.docx")
             .expect("Invalid book.toml config. Check the values of [output.docx]")
             .unwrap() // safe unwrap due to expect
+    }
+    // builds the sections vector based on the includes patterns
+    fn build_sections(&mut self, ctx: &RenderContext) -> &mut Self {
+        
+        let c = ctx.clone();
+        let sec: Vec<Section> = Vec::new();
+
+        for i in c.book.sections.iter() {
+            // evaluate if the book section matches any of the DocumentConfig filters
+            todo!()
+            // if so process them, then add the Section to the vector
+        }
+        // the the DocumentConfig's sections to the newly constructed vector
+        self.sections = sec;
+        self
+    }
+    // save out the docx file based on the current configuration
+    fn save(self) -> Result<(), std::fmt::Error> {
+        todo!();
+        Ok(())
     }
 }
 
@@ -189,7 +210,7 @@ impl From<RenderContextDef> for mdbook::renderer::RenderContext {
 
 use std::io;
 use mdbook::renderer::RenderContext;
-fn main() {
+fn main() -> Result<(), std::fmt::Error> {
     let styles: Styles = Styles::get_styles();
     println!("{:#?}", styles);
 
@@ -198,7 +219,14 @@ fn main() {
     let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
-    let cfg = DocumentConfig::new(&ctx);
+    // build out the sections into their blocks with matching
+    // styles (mocked for now)
+    let sections: Vec<Section> = vec![];
 
-    println!("{:#?}", ctx);
+    let mut cfg = DocumentConfig::new(&ctx);
+    cfg.build_sections(&ctx);
+    cfg.save();
+
+    // complete
+    Ok(())
 }
