@@ -175,23 +175,24 @@ impl DocumentConfig {
 // that allows direct conversion to/from RenderContext and
 // DocumentConfig.
 #[derive(Debug, Clone, From, Serialize)]
-#[serde(try_from = "mdbook::renderer::RenderContext", into = "RenderContext")]
-pub(crate) struct RenderContext(mdbook::renderer::RenderContext);
-impl From<RenderContext> for mdbook::renderer::RenderContext {
-    fn from(ctx: RenderContext) -> Self {
+#[serde(try_from = "mdbook::renderer::RenderContext", into = "RenderContextDef")]
+pub(crate) struct RenderContextDef(mdbook::renderer::RenderContext);
+impl From<RenderContextDef> for mdbook::renderer::RenderContext {
+    fn from(ctx: RenderContextDef) -> Self {
         ctx.0
     }
 }
 
 
 use std::io;
+use mdbook::renderer::RenderContext;
 fn main() {
     let styles: Styles = Styles::get_styles();
     println!("{:#?}", styles);
 
     let mut stdin = io::stdin();
     
-    let ctx: mdbook::renderer::RenderContext = mdbook::renderer::RenderContext::from_json(&mut stdin)
+    let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
     let cfg: DocumentConfig = ctx.
