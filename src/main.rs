@@ -192,10 +192,10 @@ fn main() {
 
     let mut stdin = io::stdin();
     
-    let cfg: RenderContext = RenderContext::from_json(&mut stdin)
-        .expect("Invalid book.toml config.")
-        .config
-        .get_deserialized_opt("output.docx")
+    let ctx: RenderContext = RenderContext::from_json(&mut stdin)
+        .expect("Invalid book.toml config.");
+
+    let cfg: DocumentConfig = ctx.config.get_deserialized_opt("output.docx")
         .expect("Invalid book.toml config. Check the values of [output.docx]")
         .unwrap(); // safe unwrap due to expect
 
