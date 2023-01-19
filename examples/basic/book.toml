@@ -6,3 +6,4 @@ src = "src"
 title = "basic example"
 
 [output.docx]
+filename = "basic_example.docx"

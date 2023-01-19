@@ -163,10 +163,13 @@ impl DocumentConfig {
     // defined. Returns an empty vector.
     fn default_sections() -> Vec<Section> { vec![] }
 
-    fn new(ctx: RenderContext) -> DocumentConfig {
-        ctx.config.get_deserialized_opt("output.docx")
-        .expect("Invalid book.toml config. Check the values of [output.docx]")
-        .unwrap()
+    fn new(ctx: &RenderContext) -> DocumentConfig {
+        ctx
+            .clone()
+            .config
+            .get_deserialized_opt("output.docx")
+            .expect("Invalid book.toml config. Check the values of [output.docx]")
+            .unwrap() // safe unwrap due to expect
     }
 }
 
@@ -195,7 +198,7 @@ fn main() {
     let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
-    let cfg = DocumentConfig::new(ctx);
+    let cfg = DocumentConfig::new(&ctx);
 
-    println!("{:#?}", cfg);
+    println!("{:#?}", ctx);
 }
