@@ -6,53 +6,26 @@ extern crate mdbook;
 use docx_rs::Document;
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
-#[derive(Debug, Clone, Serialize)]
-#[serde(try_from = "markdown::ListItem", into = "ListItem")]
+use derive_more::{Display, Error, From};
+
+#[derive(Debug, Clone, From, Deserialize)]
+#[serde(try_from = "ListItem", into = "markdown::ListItem")]
 pub(crate) struct ListItem(markdown::ListItem);
-impl From<ListItem> for markdown::ListItem {
-    fn from(item: ListItem) -> Self {
-        item.0
-    }
-}
-use std::convert::TryFrom;
-impl TryFrom<markdown::ListItem> for ListItem {
-    type Error = ();
-    fn try_from(value: markdown::ListItem) -> Result<Self, Self::Error> {
-        Ok(ListItem(value))
-    }
-}
 
 // newtype struct for markdown::Block that allows deserialization
-#[derive(Debug, Clone, Serialize)]
-#[serde(try_from = "markdown::Block", into = "Block")]
+#[derive(Debug, Clone, From, Deserialize)]
+#[serde(try_from = "Block", into = "markdown::Block")]
 pub(crate) struct Block(markdown::Block);
-impl From<Block> for markdown::Block {
-    fn from(block: Block) -> Self {
-        block.0
-    }
-}
-impl TryFrom<markdown::Block> for Block {
-    type Error = ();
-    fn try_from(value: markdown::Block) -> Result<Self, Self::Error> {
-        Ok(Block(value))
-    }
+
+#[derive(Serialize, Deserialize, Display)]
+pub enum DocConfigError {
+    ConfigParseError,
 }
 
 // newtype struct for markdown::Span that allows deserialization
-#[derive(Debug, Clone, Serialize)]
-#[serde(try_from = "markdown::Span", into = "Span")]
+#[derive(Debug, Clone, From, Deserialize)]
+#[serde(try_from = "Span", into = "markdown::Span")]
 pub(crate) struct Span(markdown::Span);
-impl From<Span> for markdown::Span {
-    fn from(span: Span) -> Self {
-        span.0
-    }
-}
-impl TryFrom<markdown::Span> for Span {
-    type Error = ();
-    fn try_from(value: markdown::Span) -> Result<Self, Self::Error> {
-        Ok(Span(value))
-    }
-}
 
 // A text formatting style definition.
 #[derive(Serialize, Default, Deserialize, Debug)]
@@ -149,7 +122,7 @@ impl Styles {
 
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, From, Deserialize)]
 struct Section {
     // A block of tokenized markdown content.
     block: Block,
@@ -161,7 +134,7 @@ struct Section {
     includes: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, From, Deserialize)]
 struct DocumentConfig {
     // the filename of the document to be produced by this
     // configuration set.
@@ -201,7 +174,7 @@ impl DocumentConfig {
 // this is necessary so that new methods can be added to RenderContext
 // that allows direct conversion to/from RenderContext and
 // DocumentConfig.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, From, Serialize)]
 #[serde(try_from = "mdbook::renderer::RenderContext", into = "RenderContext")]
 pub(crate) struct RenderContext(mdbook::renderer::RenderContext);
 impl From<RenderContext> for mdbook::renderer::RenderContext {
@@ -209,24 +182,7 @@ impl From<RenderContext> for mdbook::renderer::RenderContext {
         ctx.0
     }
 }
-impl TryFrom<mdbook::renderer::RenderContext> for RenderContext {
-    type Error = ();
-    fn try_from(value: mdbook::renderer::RenderContext) -> Result<Self, Self::Error> {
-        Ok(RenderContext(value))
-    }
-}
-impl From<RenderContext> for DocumentConfig {
-    fn from(ctx: RenderContext) -> Self {
-        todo!("implement code to turn DocumentConfig into RenderContext")
-    }
-}
-impl TryFrom<DocumentConfig> for RenderContext {
-    type Error = ();
-    fn try_from(value: DocumentConfig) -> Result<Self, Self::Error> {
-        let r = todo!("implement code to turn RenderContext into Ok(DocumentConfig)");
-        Ok(r)
-    }
-}
+
 
 use std::io;
 fn main() {
@@ -235,9 +191,14 @@ fn main() {
 
     let mut stdin = io::stdin();
     
-    let ctx = mdbook::renderer::RenderContext::from_json(&mut stdin)
-        .expect("Failure to create RenderContext. Check the syntax of Book.toml is correct.");
+    let ctx: mdbook::renderer::RenderContext = mdbook::renderer::RenderContext::from_json(&mut stdin)
+        .expect("Invalid book.toml config.");
 
+    let cfg: DocumentConfig = ctx.
+        config
+        .get_deserialized_opt("output.docx")
+        .expect("Invalid book.toml config. Check the values of [output.docx]")
+        .unwrap();
 
     println!("{:#?}", ctx);
 }
