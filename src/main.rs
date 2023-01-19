@@ -3,10 +3,9 @@ extern crate serde;
 extern crate derive_more;
 extern crate mdbook;
 
-use docx_rs::Document;
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
-use derive_more::{Display, Error, From};
+use derive_more::From;
 
 #[derive(Debug, Clone, From, Deserialize)]
 #[serde(try_from = "ListItem", into = "markdown::ListItem")]
@@ -16,11 +15,6 @@ pub(crate) struct ListItem(markdown::ListItem);
 #[derive(Debug, Clone, From, Deserialize)]
 #[serde(try_from = "Block", into = "markdown::Block")]
 pub(crate) struct Block(markdown::Block);
-
-#[derive(Serialize, Deserialize, Display)]
-pub enum DocConfigError {
-    ConfigParseError,
-}
 
 // newtype struct for markdown::Span that allows deserialization
 #[derive(Debug, Clone, From, Deserialize)]
@@ -168,6 +162,12 @@ impl DocumentConfig {
     // the default function for the sections attribute when none is
     // defined. Returns an empty vector.
     fn default_sections() -> Vec<Section> { vec![] }
+
+    fn new(ctx: RenderContext) -> DocumentConfig {
+        ctx.config.get_deserialized_opt("output.docx")
+        .expect("Invalid book.toml config. Check the values of [output.docx]")
+        .unwrap()
+    }
 }
 
 // newtype struct for mdbook::renderer::RenderContext.
@@ -195,9 +195,7 @@ fn main() {
     let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
-    let cfg: DocumentConfig = ctx.config.get_deserialized_opt("output.docx")
-        .expect("Invalid book.toml config. Check the values of [output.docx]")
-        .unwrap(); // safe unwrap due to expect
+    let cfg = DocumentConfig::new(ctx);
 
     println!("{:#?}", cfg);
 }
