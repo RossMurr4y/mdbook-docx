@@ -122,6 +122,26 @@ struct Section {
     block: Block,
     // The style alias that the corresponding Block should be formatted in.
     style: String,
+}
+impl Section {
+    // initialises a new section from default values
+    fn new() -> Self {
+        Section {
+            block: Block { 0: markdown::Block::Paragraph(vec![]) },
+            style: Style::default_alias(),
+        }
+    }
+}
+
+// the section configuration struct as represented in the book.toml
+// configuration file. This struct is how end users will associate
+// sub-sections of their final document along with particular styles.
+#[derive(Debug, Clone, From, Deserialize)]
+struct SectionConfig {
+    // the alias to a pre-existing style definition. Style definitions
+    // should be provided by way of a Styles.toml configuration file
+    // or one of the plugin-provided "out-of-the-box" defintions.
+    style: String,
     // The markdown file globs to which define this sections content.
     // Blocks from files that match these globs will be added to this section
     // and be formatted with the style alias defined by the style field.
@@ -150,7 +170,7 @@ struct DocumentConfig {
     // Markdown content that does not match any includes pattern
     // on any of the Sections will receive your "default" style.
     #[serde(default = "DocumentConfig::default_sections")]
-    sections: Vec<Section>
+    sections: Vec<SectionConfig>
 }
 impl DocumentConfig {
     // the default function for the includes attribute when none is
@@ -161,7 +181,7 @@ impl DocumentConfig {
 
     // the default function for the sections attribute when none is
     // defined. Returns an empty vector.
-    fn default_sections() -> Vec<Section> { vec![] }
+    fn default_sections() -> Vec<SectionConfig> { vec![] }
 
     // builder for initializing a new DocumentConfig.
     fn new(ctx: &RenderContext) -> DocumentConfig {
@@ -171,21 +191,6 @@ impl DocumentConfig {
             .get_deserialized_opt("output.docx")
             .expect("Invalid book.toml config. Check the values of [output.docx]")
             .unwrap() // safe unwrap due to expect
-    }
-    // builds the sections vector based on the includes patterns
-    fn build_sections(&mut self, ctx: &RenderContext) -> &mut Self {
-        
-        let c = ctx.clone();
-        let sec: Vec<Section> = Vec::new();
-
-        for i in c.book.sections.iter() {
-            // evaluate if the book section matches any of the DocumentConfig filters
-            todo!()
-            // if so process them, then add the Section to the vector
-        }
-        // the the DocumentConfig's sections to the newly constructed vector
-        self.sections = sec;
-        self
     }
     // save out the docx file based on the current configuration
     fn save(self) -> Result<(), std::fmt::Error> {
@@ -219,12 +224,7 @@ fn main() -> Result<(), std::fmt::Error> {
     let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
-    // build out the sections into their blocks with matching
-    // styles (mocked for now)
-    let sections: Vec<Section> = vec![];
-
     let mut cfg = DocumentConfig::new(&ctx);
-    cfg.build_sections(&ctx);
     cfg.save();
 
     // complete
