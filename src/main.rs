@@ -123,15 +123,6 @@ struct Section {
     // The style alias that the corresponding Block should be formatted in.
     style: String,
 }
-impl Section {
-    // initialises a new section from default values
-    fn new() -> Self {
-        Section {
-            block: Block { 0: markdown::Block::Paragraph(vec![]) },
-            style: Style::default_alias(),
-        }
-    }
-}
 
 // the section configuration struct as represented in the book.toml
 // configuration file. This struct is how end users will associate
