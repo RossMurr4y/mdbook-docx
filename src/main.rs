@@ -204,8 +204,9 @@ use std::io;
 use std::ops::Deref;
 use std::path::PathBuf;
 use mdbook::renderer::{RenderContext};
-use mdbook::book::{Chapter, BookItem};
+use mdbook::book::{BookItem};
 use glob::Pattern;
+use docx_rs::{Paragraph, Run, Docx};
 fn main() -> Result<(), std::fmt::Error> {
     let styles: Styles = Styles::get_styles();
     println!("{:#?}", styles);
@@ -218,7 +219,7 @@ fn main() -> Result<(), std::fmt::Error> {
     let mut cfg = DocumentConfig::new(&ctx);
 
     // filepath root for content as per the book.toml
-    let path_root: PathBuf = ctx.clone().root;
+    let path_root = ctx.root.as_path();
 
     // initialize a vector to hold new Sections
     let mut sections: Vec<Section> = vec![];
@@ -283,20 +284,52 @@ fn main() -> Result<(), std::fmt::Error> {
             }
         }
     }
-
     println!("sections: {:#?}", sections);
 
+    // init the output document
+    let file = std::fs::File::create(&path_root.join(cfg.filename))
+        .expect("Failed to initialize the output document.");
+    let mut paragraphs: Vec<Paragraph> = vec![]; 
 
-    //     evaluate its path against the SectionConfig globs.
+    // loop over all the sections now and add them to an output document
+    // with their stylings
+    for sec in sections.into_iter() {
+        match sec.block.0 {
+            markdown::Block::Header(_, _) => {println!("todo: {}", "header")},
+            markdown::Block::Paragraph(p) => { 
+                // init a new paragraph
 
-    //     if it matches a glob, produce a new Section
-    //          with its Block containing the content
-    //          and its Style set to the alias of the SectionConfig
-    
-    //     else
-    //          produce a new section
-    //          with its block containing the content
-    //          and its style set to the default alias
+                for span in p.into_iter() {
+                    match span {
+                        markdown::Span::Break => { println!("todo: {}", "break") },
+                        markdown::Span::Text(t) => {
+                            let para = Paragraph::new()
+                                .add_run(Run::new().add_text(t));
+                            paragraphs.push(para);
+                        },
+                        markdown::Span::Code(code) => {println!("todo: {}", "code")},
+                        markdown::Span::Link(_, _, _) => {println!("todo: {}", "link")},
+                        markdown::Span::Image(_, _, _) => {println!("todo: {}", "image")},
+                        markdown::Span::Emphasis(_) => {println!("todo: {}", "emphasis")},
+                        markdown::Span::Strong(_) => {println!("todo: {}", "strong")},
+                    }
+                }
+            },
+            markdown::Block::Blockquote(_) => {println!("todo: {}", "blockquote")},
+            markdown::Block::CodeBlock(_, _) => {println!("todo: {}", "codeblock")},
+            markdown::Block::OrderedList(_, _) => {println!("todo: {}", "orderedlist")},
+            markdown::Block::UnorderedList(_) => {println!("todo: {}", "unorderedlist")},
+            markdown::Block::Raw(_) => {println!("todo: {}", "raw")},
+            markdown::Block::Hr => {println!("todo: {}", "hr")},
+        }
+    }
+
+    let mut doc = Docx::new();
+    for para in paragraphs.into_iter() {
+        doc.clone().add_paragraph(para);
+    }
+    doc.build()
+        .pack(file);
 
     // complete
     Ok(())
