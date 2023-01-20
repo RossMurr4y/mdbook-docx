@@ -2,6 +2,7 @@ extern crate docx_rs;
 extern crate serde;
 extern crate derive_more;
 extern crate mdbook;
+extern crate glob;
 
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
@@ -116,7 +117,7 @@ impl Styles {
 
 }
 
-#[derive(Debug, Clone, From, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Section {
     // A block of tokenized markdown content.
     block: Block,
@@ -183,11 +184,6 @@ impl DocumentConfig {
             .expect("Invalid book.toml config. Check the values of [output.docx]")
             .unwrap() // safe unwrap due to expect
     }
-    // save out the docx file based on the current configuration
-    fn save(self) -> Result<(), std::fmt::Error> {
-        todo!();
-        Ok(())
-    }
 }
 
 // newtype struct for mdbook::renderer::RenderContext.
@@ -205,7 +201,11 @@ impl From<RenderContextDef> for mdbook::renderer::RenderContext {
 
 
 use std::io;
-use mdbook::renderer::RenderContext;
+use std::ops::Deref;
+use std::path::PathBuf;
+use mdbook::renderer::{RenderContext};
+use mdbook::book::{Chapter, BookItem};
+use glob::Pattern;
 fn main() -> Result<(), std::fmt::Error> {
     let styles: Styles = Styles::get_styles();
     println!("{:#?}", styles);
@@ -216,7 +216,50 @@ fn main() -> Result<(), std::fmt::Error> {
         .expect("Invalid book.toml config.");
 
     let mut cfg = DocumentConfig::new(&ctx);
-    cfg.save();
+
+    // filepath root for content as per the book.toml
+    let path_root: PathBuf = ctx.clone().root;
+
+    // initialize a vector to hold new Sections
+    let mut sections: Vec<Section> = vec![];
+
+    // filter the list of BookItems in the RenderContext to only those matching globs
+    
+    
+    // loop over all the remaining BookItems, for each:
+    for item in ctx.clone().book.iter() {
+        if let BookItem::Chapter(ref ch) = *item {
+            if !ch.is_draft_chapter() {
+                // if the Chapter path matches any of the includes globs
+                if cfg.clone()
+                    .includes
+                    .into_iter()
+                    .any(|x| {
+                        let p = Pattern::new(x.as_str()).unwrap();
+                        let path = ch
+                            .path
+                            .as_ref()
+                            .expect("Unable to identify chapter path.");
+                        p.matches(path.to_str().unwrap())
+                    }) {
+                    // at least one of the Patterns match, so include chapter
+                    println!("Glob pattern match!")
+                }
+            }
+        }
+    }
+
+
+    //     evaluate its path against the SectionConfig globs.
+
+    //     if it matches a glob, produce a new Section
+    //          with its Block containing the content
+    //          and its Style set to the alias of the SectionConfig
+    
+    //     else
+    //          produce a new section
+    //          with its block containing the content
+    //          and its style set to the default alias
 
     // complete
     Ok(())

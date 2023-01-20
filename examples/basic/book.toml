@@ -7,3 +7,4 @@ title = "basic example"
 
 [output.docx]
 filename = "basic_example.docx"
+includes = ["chapter_4.md"]

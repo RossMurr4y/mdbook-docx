@@ -970,6 +970,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "docx-rs",
+ "glob",
  "markdown",
  "mdbook",
  "serde",
