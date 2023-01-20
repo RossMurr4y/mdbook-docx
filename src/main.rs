@@ -222,15 +222,12 @@ fn main() -> Result<(), std::fmt::Error> {
 
     // initialize a vector to hold new Sections
     let mut sections: Vec<Section> = vec![];
-
-    // filter the list of BookItems in the RenderContext to only those matching globs
-    
     
     // loop over all the remaining BookItems, for each:
     for item in ctx.clone().book.iter() {
         if let BookItem::Chapter(ref ch) = *item {
             if !ch.is_draft_chapter() {
-                // if the Chapter path matches any of the includes globs
+                // if the Chapter path matches any of the includes globs from DocumentConfig scope
                 if cfg.clone()
                     .includes
                     .into_iter()
@@ -242,12 +239,52 @@ fn main() -> Result<(), std::fmt::Error> {
                             .expect("Unable to identify chapter path.");
                         p.matches(path.to_str().unwrap())
                     }) {
-                    // at least one of the Patterns match, so include chapter
-                    println!("Glob pattern match!")
-                }
+
+                        // at least one of the Patterns match, so include chapter
+                        // if it matches a SectionConfig pattern, use that SectionConfig
+                        // to construct this new Section. Else use use default style.
+                        let sec_cfg: Vec<SectionConfig> = cfg.clone()
+                            .sections
+                            .into_iter()
+                            .filter(|s| {
+                                s.includes
+                                    .iter()
+                                    .any(|x| {
+                                        let p = Pattern::new(x.as_str()).unwrap();
+                                        let path = ch
+                                            .path
+                                            .as_ref()
+                                            .expect("Unable to identify chapter path from Section config.");
+                                        p.matches(path.to_str().unwrap())
+                                    })
+                            }).collect();
+
+                        println!("chapter: {:#?},  sec_cfg: {:#?}", ch.path, sec_cfg);
+                        
+                        // tokenize the markdown content for this section
+                        let sec_blocks = markdown::tokenize(ch.content.as_str());
+
+                        // if the filtered section config is empty, then the current chapter
+                        // should be style with the default style. Otherwise with the
+                        // SectionConfig style
+                        let sec_style: String = match sec_cfg.is_empty() {
+                            true => "default".to_string(),
+                            false => sec_cfg.first().unwrap().style.clone(),
+                        };
+                        // then for each block, push up a new section into our final document sections
+                        // vector with the style matching the current SectionConfig
+                        for block in sec_blocks.into_iter() {
+                            sections.push(Section {
+                                style: sec_style.clone(),
+                                block: block.into(),
+                            })
+                        }
+                    }
             }
         }
     }
+
+    println!("sections: {:#?}", sections);
 
 
     //     evaluate its path against the SectionConfig globs.

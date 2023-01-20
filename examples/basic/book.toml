@@ -7,4 +7,8 @@ title = "basic example"
 
 [output.docx]
 filename = "basic_example.docx"
-includes = ["chapter_4.md"]
+includes = ["chapter_3.md", "chapter_5.md"]
+
+[[output.docx.sections]]
+style = "example_a"
+includes = [ "chapter_5.md" ]
