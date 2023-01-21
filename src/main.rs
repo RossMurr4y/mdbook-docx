@@ -298,7 +298,7 @@ fn main() -> zip::result::ZipResult<()> {
             .filter(|&s| s.alias == sec.style)
             .collect::<Vec<&Style>>();
 
-        let default_style = Style::default();
+        let default_style = Style::default_new();
         let sec_style: &Style = if opt_style.is_empty() {
             &default_style
         } else {
@@ -320,6 +320,7 @@ fn main() -> zip::result::ZipResult<()> {
                                     Run::new()
                                         .add_text(t)
                                         .fonts(RunFonts::new().ascii(&sec_style.font))
+                                        .size(sec_style.size.clone().try_into().expect("Failed to translate style size to usize."))
                                 );
                             paragraphs.push(para);
                         },
