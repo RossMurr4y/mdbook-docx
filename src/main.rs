@@ -101,8 +101,6 @@ impl Styles {
             .expect("Failed to parse the parent directory to a string.");
 
         let path = format!("{src_dir}/Styles.toml");
-        // debug print the path
-        println!("Styles file: {path}");
 
         // read an existing Styles.toml or create it and populate it with the default style
         match std::fs::read_to_string(path) {
@@ -206,11 +204,8 @@ use std::ops::Deref;
 use mdbook::renderer::{RenderContext};
 use mdbook::book::{BookItem};
 use glob::Pattern;
-use docx_rs::{Paragraph, Run, Docx};
-use std::rc::Rc;
+use docx_rs::{Paragraph, Run, RunFonts, Docx};
 fn main() -> zip::result::ZipResult<()> {
-    let styles: Styles = Styles::get_styles();
-    println!("{styles:#?}");
 
     let mut stdin = io::stdin();
     
@@ -260,8 +255,6 @@ fn main() -> zip::result::ZipResult<()> {
                                         p.matches(path.to_str().unwrap())
                                     })
                             }).collect();
-
-                        println!("chapter: {:#?},  sec_cfg: {:#?}", ch.path, sec_cfg);
                         
                         // tokenize the markdown content for this section
                         let sec_blocks = markdown::tokenize(ch.content.as_str());
@@ -269,6 +262,7 @@ fn main() -> zip::result::ZipResult<()> {
                         // if the filtered section config is empty, then the current chapter
                         // should be style with the default style. Otherwise with the
                         // SectionConfig style
+                        println!("sec_cfg: {sec_cfg:#?}");
                         let sec_style: String = match sec_cfg.is_empty() {
                             true => "default".to_string(),
                             false => sec_cfg.first().unwrap().style.clone(),
@@ -276,6 +270,7 @@ fn main() -> zip::result::ZipResult<()> {
                         // then for each block, push up a new section into our final document sections
                         // vector with the style matching the current SectionConfig
                         for block in sec_blocks.into_iter() {
+                            println!("sec_style: {sec_style:#?}");
                             sections.push(Section {
                                 style: sec_style.clone(),
                                 block: block.into(),
@@ -285,16 +280,31 @@ fn main() -> zip::result::ZipResult<()> {
             }
         }
     }
-    println!("sections: {sections:#?}");
 
     // init the output document
     let file = std::fs::File::create(&path_root.join(cfg.filename))
         .expect("Failed to initialize the output document.");
     let mut paragraphs: Vec<Paragraph> = vec![]; 
 
+    let styles: Styles = Styles::get_styles();
+
     // loop over all the sections now and add them to an output document
     // with their stylings
     for sec in sections.into_iter() {
+
+        // filter the available styles to just the one defined by the section
+        let opt_style = &styles.styles
+            .iter()
+            .filter(|&s| s.alias == sec.style)
+            .collect::<Vec<&Style>>();
+
+        let default_style = Style::default();
+        let sec_style: &Style = if opt_style.is_empty() {
+            &default_style
+        } else {
+            opt_style.first().expect("Unable to find Style for section.").deref()
+        };
+
         match sec.block.0 {
             markdown::Block::Header(_, _) => {println!("todo: header")},
             markdown::Block::Paragraph(p) => { 
@@ -304,8 +314,13 @@ fn main() -> zip::result::ZipResult<()> {
                     match span {
                         markdown::Span::Break => { println!("todo: break") },
                         markdown::Span::Text(t) => {
+
                             let para = Paragraph::new()
-                                .add_run(Run::new().add_text(t));
+                                .add_run(
+                                    Run::new()
+                                        .add_text(t)
+                                        .fonts(RunFonts::new().ascii(&sec_style.font))
+                                );
                             paragraphs.push(para);
                         },
                         markdown::Span::Code(_) => {println!("todo: code")},
