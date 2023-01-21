@@ -34,7 +34,7 @@ struct Style {
     font: String,
     // the font size for the style
     #[serde(default = "Style::default_size")]
-    size: u32,
+    size: u64,
     // the font color for the style
     #[serde(default = "Style::default_color")]
     color: String,
@@ -61,7 +61,7 @@ impl Style {
     fn default_font() -> String { "sans-serif".to_string() }
     // default function used by serde to populate the default value
     // for the size field when not defined in the Styles.toml file
-    fn default_size() -> u32 { 12 }
+    fn default_size() -> u64 { 12 }
     // default function used by serde to populate the default value
     // for the color field when not defined in the Styles.toml file
     fn default_color() -> String { "#000000".to_string() }
@@ -320,7 +320,7 @@ fn main() -> zip::result::ZipResult<()> {
                                     Run::new()
                                         .add_text(t)
                                         .fonts(RunFonts::new().ascii(&sec_style.font))
-                                        .size(sec_style.size.clone().try_into().expect("Failed to translate style size to usize."))
+                                        .size((sec_style.size.clone() * 2).try_into().expect("Failed to translate style size to usize."))
                                 );
                             paragraphs.push(para);
                         },
