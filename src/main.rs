@@ -202,10 +202,12 @@ impl From<RenderContextDef> for mdbook::renderer::RenderContext {
 
 
 use std::io;
+use std::ops::Deref;
 use mdbook::renderer::{RenderContext};
 use mdbook::book::{BookItem};
 use glob::Pattern;
 use docx_rs::{Paragraph, Run, Docx};
+use std::rc::Rc;
 fn main() -> zip::result::ZipResult<()> {
     let styles: Styles = Styles::get_styles();
     println!("{styles:#?}");
@@ -324,9 +326,11 @@ fn main() -> zip::result::ZipResult<()> {
     }
 
     let mut doc = Docx::new();
+
     for para in paragraphs.into_iter() {
-        doc.clone().add_paragraph(para);
+        doc = doc.add_paragraph(para);
     }
+
     doc.build()
         .pack(file)
 }
