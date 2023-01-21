@@ -3,6 +3,7 @@ extern crate serde;
 extern crate derive_more;
 extern crate mdbook;
 extern crate glob;
+extern crate zip;
 
 // newtype struct for markdown::ListItem that allows deserialization
 use serde::{Serialize, Deserialize};
@@ -99,20 +100,20 @@ impl Styles {
             .to_str()
             .expect("Failed to parse the parent directory to a string.");
 
-        let path = format!("{}/Styles.toml", src_dir);
+        let path = format!("{src_dir}/Styles.toml");
         // debug print the path
-        println!("Styles file: {}", path);
+        println!("Styles file: {path}");
 
         // read an existing Styles.toml or create it and populate it with the default style
         match std::fs::read_to_string(path) {
             Ok(s) => {
-                return toml::from_str(&s)
-                    .expect("Failed to parse Styles.toml - check the file is valid TOML.");
+                toml::from_str(&s)
+                    .expect("Failed to parse Styles.toml - check the file is valid TOML.")
             },
             Err(_) => {
-                return Styles::default();
+                Styles::default()
             }
-        };
+        }
     }
 
 }
@@ -201,22 +202,20 @@ impl From<RenderContextDef> for mdbook::renderer::RenderContext {
 
 
 use std::io;
-use std::ops::Deref;
-use std::path::PathBuf;
 use mdbook::renderer::{RenderContext};
 use mdbook::book::{BookItem};
 use glob::Pattern;
 use docx_rs::{Paragraph, Run, Docx};
-fn main() -> Result<(), std::fmt::Error> {
+fn main() -> zip::result::ZipResult<()> {
     let styles: Styles = Styles::get_styles();
-    println!("{:#?}", styles);
+    println!("{styles:#?}");
 
     let mut stdin = io::stdin();
     
     let ctx: RenderContext = RenderContext::from_json(&mut stdin)
         .expect("Invalid book.toml config.");
 
-    let mut cfg = DocumentConfig::new(&ctx);
+    let cfg = DocumentConfig::new(&ctx);
 
     // filepath root for content as per the book.toml
     let path_root = ctx.root.as_path();
@@ -284,7 +283,7 @@ fn main() -> Result<(), std::fmt::Error> {
             }
         }
     }
-    println!("sections: {:#?}", sections);
+    println!("sections: {sections:#?}");
 
     // init the output document
     let file = std::fs::File::create(&path_root.join(cfg.filename))
@@ -295,32 +294,32 @@ fn main() -> Result<(), std::fmt::Error> {
     // with their stylings
     for sec in sections.into_iter() {
         match sec.block.0 {
-            markdown::Block::Header(_, _) => {println!("todo: {}", "header")},
+            markdown::Block::Header(_, _) => {println!("todo: header")},
             markdown::Block::Paragraph(p) => { 
                 // init a new paragraph
 
                 for span in p.into_iter() {
                     match span {
-                        markdown::Span::Break => { println!("todo: {}", "break") },
+                        markdown::Span::Break => { println!("todo: break") },
                         markdown::Span::Text(t) => {
                             let para = Paragraph::new()
                                 .add_run(Run::new().add_text(t));
                             paragraphs.push(para);
                         },
-                        markdown::Span::Code(code) => {println!("todo: {}", "code")},
-                        markdown::Span::Link(_, _, _) => {println!("todo: {}", "link")},
-                        markdown::Span::Image(_, _, _) => {println!("todo: {}", "image")},
-                        markdown::Span::Emphasis(_) => {println!("todo: {}", "emphasis")},
-                        markdown::Span::Strong(_) => {println!("todo: {}", "strong")},
+                        markdown::Span::Code(_) => {println!("todo: code")},
+                        markdown::Span::Link(_, _, _) => {println!("todo: link")},
+                        markdown::Span::Image(_, _, _) => {println!("todo: image")},
+                        markdown::Span::Emphasis(_) => {println!("todo: emphasis")},
+                        markdown::Span::Strong(_) => {println!("todo: strong")},
                     }
                 }
             },
-            markdown::Block::Blockquote(_) => {println!("todo: {}", "blockquote")},
-            markdown::Block::CodeBlock(_, _) => {println!("todo: {}", "codeblock")},
-            markdown::Block::OrderedList(_, _) => {println!("todo: {}", "orderedlist")},
-            markdown::Block::UnorderedList(_) => {println!("todo: {}", "unorderedlist")},
-            markdown::Block::Raw(_) => {println!("todo: {}", "raw")},
-            markdown::Block::Hr => {println!("todo: {}", "hr")},
+            markdown::Block::Blockquote(_) => {println!("todo: blockquote")},
+            markdown::Block::CodeBlock(_, _) => {println!("todo: codeblock")},
+            markdown::Block::OrderedList(_, _) => {println!("todo: orderedlist")},
+            markdown::Block::UnorderedList(_) => {println!("todo: unorderedlist")},
+            markdown::Block::Raw(_) => {println!("todo: raw")},
+            markdown::Block::Hr => {println!("todo: hr")},
         }
     }
 
@@ -329,8 +328,5 @@ fn main() -> Result<(), std::fmt::Error> {
         doc.clone().add_paragraph(para);
     }
     doc.build()
-        .pack(file);
-
-    // complete
-    Ok(())
+        .pack(file)
 }
