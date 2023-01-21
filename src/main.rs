@@ -321,7 +321,8 @@ fn main() -> zip::result::ZipResult<()> {
                                         .add_text(t)
                                         .fonts(RunFonts::new().ascii(&sec_style.font))
                                         .size((sec_style.size.clone() * 2).try_into().expect("Failed to translate style size to usize."))
-                                );
+                                        .color(&sec_style.color)
+                                    );
                             paragraphs.push(para);
                         },
                         markdown::Span::Code(_) => {println!("todo: code")},
